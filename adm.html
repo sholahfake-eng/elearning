@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <title>E-Learning Siswa</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #f4f7fb;
+      margin: 0;
+      padding-top: 70px; /* ruang untuk header */
+      padding-bottom: 60px; /* ruang untuk footer */
+    }
+
+    /* --- Header Tetap --- */
+    header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      background: #007BFF;
+      color: white;
+      text-align: center;
+      padding: 15px;
+      font-size: 20px;
+      font-weight: bold;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+      z-index: 1000;
+    }
+
+    .materi {
+      background: white;
+      border-radius: 8px;
+      padding: 15px;
+      margin-bottom: 15px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+    .materi h3 { margin: 0; color: #333; }
+    .materi p { margin: 10px 0; }
+
+    /* Agar enter di Google Sheet jadi baris baru */
+    .teks-soal {
+      white-space: pre-line;
+    }
+
+    input, textarea, button {
+      display: block;
+      margin-top: 8px;
+      padding: 10px;
+      width: 100%;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      font-size: 15px;
+    }
+
+    button {
+      background-color: #007BFF;
+      color: white;
+      border: none;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+    button:hover { background-color: #0056b3; }
+
+    #status { margin-top: 10px; font-weight: bold; }
+
+    /* --- Footer Tetap --- */
+    footer {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: #007BFF;
+      color: white;
+      text-align: center;
+      padding: 10px;
+      font-size: 14px;
+      border-top: 2px solid #0056b3;
+      box-shadow: 0 -2px 6px rgba(0,0,0,0.15);
+      z-index: 1000;
+    }
+
+    /* --- Konten Utama --- */
+    main {
+      max-width: 700px;
+      margin: auto;
+      padding: 10px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    📘 E-Learning Siswa
+  </header>
+
+  <main>
+    <label>Nama Siswa:</label>
+    <input type="text" id="nama" placeholder="Tulis nama lengkap kamu...">
+
+    <div id="listMateri">⏳ Memuat soal...</div>
+  </main>
+
+  <footer>
+    © 2025 Mahasiswa PAI UIN Madura. All rights reserved.
+  </footer>
+
+  <script>
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxUp-sNc5hQH0k9qVN6Og_Eva_wbzKnyfVQlHgiJcLtBRnii2HfOrHcujEUboDlyzAmRw/exec";
+
+    async function loadSoal() {
+      try {
+        const res = await fetch(SCRIPT_URL);
+        const data = await res.json();
+        tampilkanSoal(data);
+      } catch (err) {
+        document.getElementById("listMateri").innerHTML = "<p style='color:red'>❌ Gagal memuat soal: " + err.message + "</p>";
+      }
+    }
+
+    function tampilkanSoal(data) {
+      const container = document.getElementById("listMateri");
+      container.innerHTML = "";
+
+      if (!data || data.length === 0) {
+        container.innerHTML = "<p>Tidak ada soal tersedia.</p>";
+        return;
+      }
+
+      data.forEach((d, i) => {
+        const div = document.createElement("div");
+        div.className = "materi";
+        div.dataset.judul = d.judul;
+        div.dataset.soal = d.soal;
+
+        div.innerHTML = `
+          <h3>${d.judul}</h3>
+          <p><b>Soal:</b></p>
+          <p class="teks-soal">${d.soal}</p>
+          <p><a href="${d.link}" target="_blank">📎 Lihat Materi</a></p>
+          <textarea id="jawaban${i}" rows="3" placeholder="Tulis jawaban kamu di sini..."></textarea>
+          <button onclick="kirimJawabanIndex(${i})">Kirim Jawaban</button>
+          <div id="status${i}"></div>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    function kirimJawabanIndex(i) {
+      const div = document.querySelector(`#jawaban${i}`).closest(".materi");
+      const judul = div.dataset.judul;
+      const soal = div.dataset.soal;
+      kirimJawaban(judul, soal, i);
+    }
+
+    async function kirimJawaban(judul, soal, i) {
+      const nama = document.getElementById("nama").value.trim();
+      const jawaban = document.getElementById(`jawaban${i}`).value.trim();
+      const status = document.getElementById(`status${i}`);
+
+      if (!nama || !jawaban) {
+        status.innerText = "⚠️ Nama dan jawaban wajib diisi!";
+        return;
+      }
+
+      status.innerText = "⏳ Mengirim jawaban...";
+
+      try {
+        await fetch(SCRIPT_URL, {
+          method: "POST",
+          mode: "no-cors",
+          body: JSON.stringify({ action: "jawaban", nama, judul, soal, jawaban })
+        });
+        status.innerText = "✅ Jawaban terkirim!";
+        document.getElementById(`jawaban${i}`).value = "";
+      } catch (err) {
+        status.innerText = "❌ Gagal: " + err.message;
+      }
+    }
+
+    loadSoal();
+  </script>
+</body>
+</html>
