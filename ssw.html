@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <title>Admin E-Learning</title>
+  <style>
+    body { font-family: 'Segoe UI', sans-serif; background: #eef3f8; padding: 20px; }
+    input, textarea, button {
+      display: block; margin: 8px 0; padding: 10px; width: 100%;
+      max-width: 500px; border-radius: 6px; border: 1px solid #ccc;
+    }
+    button { background-color: #007BFF; color: white; border: none; cursor: pointer; margin-right: 5px; }
+    button:hover { background-color: #0056b3; }
+    #status { margin-top: 10px; font-weight: bold; }
+    table { border-collapse: collapse; width: 100%; max-width: 900px; margin-top: 20px; background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: left; font-size: 14px; vertical-align: top; }
+    th { background: #007BFF; color: white; }
+    tr:nth-child(even) { background: #f9f9f9; }
+    .btn-edit { background-color: #FFC107; color: black; }
+    .btn-delete { background-color: #DC3545; }
+
+    /* agar teks tampil baris baru sesuai enter */
+    .multiline {
+      white-space: pre-line;
+    }
+  </style>
+</head>
+<body>
+  <h2>🧩 Admin E-Learning SMA Hidayatul Mubtadiin</h2>
+
+  <label>Judul Materi:</label>
+  <input type="text" id="judul" placeholder="Contoh: Akhlak Terpuji">
+
+  <label>Link Materi:</label>
+  <input type="text" id="link" placeholder="https://drive.google.com/...">
+
+  <label>Soal:</label>
+  <textarea id="soal" rows="4" placeholder="Tulis pertanyaan di sini..."></textarea>
+
+  <button onclick="kirimData()">💾 Simpan</button>
+  <button onclick="resetForm()">🧹 Bersihkan</button>
+  <div id="status"></div>
+
+  <h3>📋 Daftar Soal</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>No</th>
+        <th>Judul</th>
+        <th>Soal</th>
+        <th>Link</th>
+        <th>Aksi</th>
+      </tr>
+    </thead>
+    <tbody id="dataSoal">
+      <tr><td colspan="6" style="text-align:center;">⏳ Memuat data...</td></tr>
+    </tbody>
+  </table>
+
+  <h3>📝 Jawaban Siswa</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>No</th>
+        <th>Nama</th>
+        <th>Judul</th>
+        <th>Jawaban</th>
+        <th>Waktu</th>
+      </tr>
+    </thead>
+    <tbody id="dataJawaban">
+      <tr><td colspan="6" style="text-align:center;">⏳ Memuat jawaban...</td></tr>
+    </tbody>
+  </table>
+
+  <script>
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxUp-sNc5hQH0k9qVN6Og_Eva_wbzKnyfVQlHgiJcLtBRnii2HfOrHcujEUboDlyzAmRw/exec";
+    let editingData = null;
+
+    async function kirimData() {
+      const data = {
+        judul: document.getElementById("judul").value.trim(),
+        link: document.getElementById("link").value.trim(),
+        soal: document.getElementById("soal").value.trim(),
+      };
+
+      if (!data.judul || !data.soal) {
+        document.getElementById("status").innerText = "⚠️ Judul dan soal wajib diisi!";
+        return;
+      }
+
+      const payload = editingData
+        ? { ...data, oldJudul: editingData.judul, oldSoal: editingData.soal, action: "edit" }
+        : { ...data, action: "add" };
+
+      document.getElementById("status").innerText = editingData ? "✏️ Mengedit data..." : "⏳ Menyimpan data...";
+
+      await fetch(SCRIPT_URL, { method: "POST", mode: "no-cors", body: JSON.stringify(payload) });
+
+      document.getElementById("status").innerText = editingData ? "✅ Data berhasil diedit!" : "✅ Data berhasil disimpan!";
+      resetForm();
+      setTimeout(loadData, 10);
+    }
+
+    function resetForm() {
+      editingData = null;
+      document.getElementById("judul").value = "";
+      document.getElementById("link").value = "";
+      document.getElementById("soal").value = "";
+      document.getElementById("status").innerText = "";
+    }
+
+    async function loadData() {
+      document.getElementById("dataSoal").innerHTML = `<tr><td colspan="6" style="text-align:center;">⏳ Memuat data...</td></tr>`;
+      const res = await fetch(SCRIPT_URL);
+      const data = await res.json();
+      tampilkanData(data);
+    }
+
+    function tampilkanData(data) {
+      if (!data || data.length === 0) {
+        document.getElementById("dataSoal").innerHTML = `<tr><td colspan="6" style="text-align:center;">Tidak ada data</td></tr>`;
+        return;
+      }
+
+      let html = "";
+      data.forEach((d, i) => {
+        html += `
+          <tr>
+            <td>${i + 1}</td>
+            <td>${d.judul}</td>
+            <td class="multiline">${d.soal}</td>
+            <td><a href="${d.link}" target="_blank">Lihat</a></td>
+            <td>
+              <button class="btn-edit" onclick='editData(${JSON.stringify(d)})'>Edit</button>
+              <button class="btn-delete" onclick='hapusData(${JSON.stringify(d)})'>Hapus</button>
+            </td>
+          </tr>
+        `;
+      });
+      document.getElementById("dataSoal").innerHTML = html;
+    }
+
+    function editData(d) {
+      editingData = d;
+      document.getElementById("judul").value = d.judul;
+      document.getElementById("link").value = d.link;
+      document.getElementById("soal").value = d.soal;
+      document.getElementById("status").innerText = "✏️ Mode edit aktif";
+    }
+
+    async function hapusData(d) {
+      if (!confirm(`Yakin ingin menghapus soal "${d.soal}"?`)) return;
+      await fetch(SCRIPT_URL, { method: "POST", mode: "no-cors", body: JSON.stringify({ ...d, action: "delete" }) });
+      document.getElementById("status").innerText = "🗑️ Data dihapus!";
+      setTimeout(loadData, 10);
+    }
+
+    async function loadJawaban() {
+      const url = SCRIPT_URL + "?type=jawaban";
+      const container = document.getElementById("dataJawaban");
+      container.innerHTML = `<tr><td colspan="6" style="text-align:center;">⏳ Memuat jawaban...</td></tr>`;
+      try {
+        const res = await fetch(url);
+        const data = await res.json();
+
+        if (!data || data.length === 0) {
+          container.innerHTML = `<tr><td colspan="6" style="text-align:center;">Tidak ada jawaban</td></tr>`;
+          return;
+        }
+
+        let html = "";
+        data.forEach((d, i) => {
+          html += `
+            <tr>
+              <td>${i+1}</td>
+              <td>${d.nama}</td>
+              <td>${d.judul}</td>
+              <td class="multiline">${d.jawaban}</td>
+              <td>${new Date(d.waktu).toLocaleString()}</td>
+            </tr>
+          `;
+        });
+        container.innerHTML = html;
+
+      } catch (err) {
+        container.innerHTML = `<tr><td colspan="6" style="color:red;text-align:center;">❌ Gagal memuat jawaban: ${err.message}</td></tr>`;
+      }
+    }
+
+    window.onload = () => {
+      loadData();
+      loadJawaban();
+    };
+  </script>
+</body>
+</html>
